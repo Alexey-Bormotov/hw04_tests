@@ -82,108 +82,119 @@ class PostsViewsTests(TestCase):
                 response = self.auth_client.get(reverse_name)
                 self.assertTemplateUsed(response, template)
 
-    # Не знаю, правильно ли я сделал нижеследующий тест,
-    # но ощущения такие, будто достал шляпу из кролика :)
-    # P.S. Ни один кролик при тестах не пострадал.
-    def test_posts_pages_show_correct_contexts(self):
-        """Проверка правильности контекстов страниц приложения Posts."""
-        group = PostsViewsTests.group
-        user = PostsViewsTests.user
-        post = PostsViewsTests.post
+    def test_index_page_show_correct_context(self):
+        """Шаблон index сформирован с правильным контекстом."""
+        response = self.auth_client.get(reverse('posts:index'))
 
-        pages_contexts_names = {
-            reverse('posts:index'): ('page_obj',),
-            reverse(
-                'posts:group_posts',
-                kwargs={'slug': group.slug}
-            ): ('page_obj', 'group'),
-            reverse(
-                'posts:profile',
-                kwargs={'username': user.username}
-            ): ('page_obj', 'author', 'posts_count'),
-            reverse(
-                'posts:post_detail',
-                kwargs={'post_id': post.pk}
-            ): ('post', 'posts_count'),
-            reverse('posts:post_create'): ('form',),
-            reverse(
-                'posts:post_edit',
-                kwargs={'post_id': post.pk}
-            ): ('form', 'post_id'),
+        context_post = response.context['page_obj'][0]
+        post_author = context_post.author.username
+        post_group = context_post.group.title
+        post_text = context_post.text
+
+        self.assertEqual(post_author, 'test_user')
+        self.assertEqual(post_group, 'Тестовая группа')
+        self.assertEqual(
+            post_text,
+            'Тестовый пост №13 тестового пользователя в тестовой группе'
+        )
+
+    def test_group_posts_page_show_correct_context(self):
+        """Шаблон group_list сформирован с правильным контекстом."""
+        group = PostsViewsTests.group
+        response = self.auth_client.get(
+            reverse('posts:group_posts', kwargs={'slug': group.slug})
+        )
+
+        context_post = response.context['page_obj'][0]
+        post_author = context_post.author.username
+        post_group = context_post.group.title
+        post_text = context_post.text
+        context_group = response.context['group'].title
+
+        self.assertEqual(post_author, 'test_user')
+        self.assertEqual(post_group, 'Тестовая группа')
+        self.assertEqual(context_group, 'Тестовая группа')
+        self.assertEqual(
+            post_text,
+            'Тестовый пост №13 тестового пользователя в тестовой группе'
+        )
+
+    def test_profile_page_show_correct_context(self):
+        """Шаблон profile сформирован с правильным контекстом."""
+        user = PostsViewsTests.user
+        response = self.auth_client.get(
+            reverse('posts:profile', kwargs={'username': user.username})
+        )
+
+        context_post = response.context['page_obj'][0]
+        post_author = context_post.author.username
+        post_group = context_post.group.title
+        post_text = context_post.text
+        context_author = response.context['author'].username
+        context_posts_count = response.context['posts_count']
+
+        self.assertEqual(post_author, 'test_user')
+        self.assertEqual(context_author, 'test_user')
+        self.assertEqual(post_group, 'Тестовая группа')
+        self.assertEqual(
+            post_text,
+            'Тестовый пост №13 тестового пользователя в тестовой группе'
+        )
+        self.assertEqual(context_posts_count, 13)
+
+    def test_post_detail_page_show_correct_context(self):
+        """Шаблон post_detail сформирован с правильным контекстом."""
+        post = PostsViewsTests.post
+        response = self.auth_client.get(
+            reverse('posts:post_detail', kwargs={'post_id': post.pk})
+        )
+
+        context_post = response.context['post']
+        post_author = context_post.author.username
+        post_group = context_post.group.title
+        post_text = context_post.text
+        context_posts_count = response.context['posts_count']
+
+        self.assertEqual(post_author, 'test_user')
+        self.assertEqual(post_group, 'Тестовая группа')
+        self.assertEqual(
+            post_text,
+            'Тестовый пост №13 тестового пользователя в тестовой группе'
+        )
+        self.assertEqual(context_posts_count, 13)
+
+    def test_post_create_show_correct_context(self):
+        """Шаблон create_post (create) сформирован с правильным контекстом."""
+        response = self.auth_client.get(reverse('posts:post_create'))
+
+        form_fields = {
+            'text': forms.fields.CharField,
+            'group': forms.fields.ChoiceField,
         }
 
-        for reverse_name, context in pages_contexts_names.items():
-            with self.subTest(reverse_name=reverse_name):
-                response = self.auth_client.get(reverse_name)
+        for value, expected in form_fields.items():
+            with self.subTest(value=value):
+                form_field = response.context.get('form').fields.get(value)
+                self.assertIsInstance(form_field, expected)
 
-                for context_obj in context:
-                    if context_obj == 'page_obj':
-                        context_post = response.context['page_obj'][0]
-                        post_author = context_post.author.username
-                        post_group = context_post.group.title
-                        post_text = context_post.text
+    def test_post_edit_page_show_correct_context(self):
+        """Шаблон create_post (edit) сформирован с правильным контекстом."""
+        post = PostsViewsTests.post
+        response = self.auth_client.get(
+            reverse('posts:post_edit', kwargs={'post_id': post.pk})
+        )
 
-                        self.assertEqual(post_author, 'test_user')
-                        self.assertEqual(post_group, 'Тестовая группа')
-                        self.assertEqual(
-                            post_text,
-                            ('Тестовый пост №13 тестового пользователя'
-                             ' в тестовой группе')
-                        )
-                        continue
+        form_fields = {
+            'text': forms.fields.CharField,
+            'group': forms.fields.ChoiceField,
+        }
+        context_post_id = response.context['post_id']
 
-                    if context_obj == 'group':
-                        context_group = response.context['group'].title
-
-                        self.assertEqual(context_group, 'Тестовая группа')
-                        continue
-
-                    if context_obj == 'author':
-                        context_author = response.context['author'].username
-
-                        self.assertEqual(context_author, 'test_user')
-                        continue
-
-                    if context_obj == 'posts_count':
-                        context_posts_count = response.context['posts_count']
-
-                        self.assertEqual(context_posts_count, 13)
-                        continue
-
-                    if context_obj == 'post':
-                        context_post = response.context['post']
-                        post_author = context_post.author.username
-                        post_group = context_post.group.title
-                        post_text = context_post.text
-
-                        self.assertEqual(post_author, 'test_user')
-                        self.assertEqual(post_group, 'Тестовая группа')
-                        self.assertEqual(
-                            post_text,
-                            'Тестовый пост №13 тестового пользователя'
-                            ' в тестовой группе'
-                        )
-                        continue
-
-                    if context_obj == 'form':
-                        form_fields = {
-                            'text': forms.fields.CharField,
-                            'group': forms.fields.ChoiceField,
-                        }
-
-                        for value, expected in form_fields.items():
-                            with self.subTest(value=value):
-                                form_field = (
-                                    response.context.get('form').
-                                    fields.get(value)
-                                )
-                                self.assertIsInstance(form_field, expected)
-                        continue
-
-                    if context_obj == 'post_id':
-                        context_post_id = response.context['post_id']
-
-                        self.assertEqual(context_post_id, 13)
+        for value, expected in form_fields.items():
+            with self.subTest(value=value):
+                form_field = response.context.get('form').fields.get(value)
+                self.assertIsInstance(form_field, expected)
+        self.assertEqual(context_post_id, 13)
 
     def test_posts_pages_correct_paginator_work(self):
         """Проверка работы паджинатора в шаблонах приложения Posts."""
