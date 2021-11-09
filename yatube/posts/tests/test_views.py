@@ -9,6 +9,8 @@ from ..models import Group, Post
 
 User = get_user_model()
 
+TEST_POST_TEXT = 'Тестовый пост №13 тестового пользователя в тестовой группе'
+
 
 class PostsViewsTests(TestCase):
     @classmethod
@@ -33,16 +35,17 @@ class PostsViewsTests(TestCase):
                 text=f'Тестовый пост №{i+1} тестового '
                      f'пользователя в тестовой группе 2',
             )
-            # Без sleep посты слишком быстро создаются и их сортировка
-            # по дате беспорядочна при каждом новом запуске тестов.
-            # Этот костыль оправдан или есть другое решение?!
+            # Такой вариант тоже помогает, но он не красиво работает)
+            # и pytest выдаёт предупреждения
+            # Post.objects.filter(pk=i + 1).update(pub_date=f'2021-1-{i+1}')
+
             sleep(0.01)
 
+        # Этот друг в другой группе (№1), предыдушие 12 в группе №2
         cls.post = Post.objects.create(
             author=cls.user,
             group=cls.group,
-            text=f'{"Тестовый пост №13 тестового"}'
-                 f' пользователя в тестовой группе',
+            text=TEST_POST_TEXT,
         )
 
     def setUp(self):
@@ -50,13 +53,13 @@ class PostsViewsTests(TestCase):
 
         self.auth_client.force_login(PostsViewsTests.user)
 
-    def test_posts_pages_uses_correct_templates(self):
+    def test_posts_urls_uses_correct_templates(self):
         """URL-адреса используют соответствующие шаблоны в приложении Posts."""
         group = PostsViewsTests.group
         user = PostsViewsTests.user
         post = PostsViewsTests.post
 
-        pages_templates_names = {
+        urls_templates_names = {
             reverse('posts:index'): 'posts/index.html',
             reverse(
                 'posts:group_posts',
@@ -77,9 +80,9 @@ class PostsViewsTests(TestCase):
             ): 'posts/create_post.html',
         }
 
-        for reverse_name, template in pages_templates_names.items():
-            with self.subTest(reverse_name=reverse_name):
-                response = self.auth_client.get(reverse_name)
+        for url, template in urls_templates_names.items():
+            with self.subTest(url=url):
+                response = self.auth_client.get(url)
                 self.assertTemplateUsed(response, template)
 
     def test_index_page_show_correct_context(self):
@@ -95,7 +98,7 @@ class PostsViewsTests(TestCase):
         self.assertEqual(post_group, 'Тестовая группа')
         self.assertEqual(
             post_text,
-            'Тестовый пост №13 тестового пользователя в тестовой группе'
+            TEST_POST_TEXT
         )
 
     def test_group_posts_page_show_correct_context(self):
@@ -116,11 +119,12 @@ class PostsViewsTests(TestCase):
         self.assertEqual(context_group, 'Тестовая группа')
         self.assertEqual(
             post_text,
-            'Тестовый пост №13 тестового пользователя в тестовой группе'
+            TEST_POST_TEXT
         )
 
     def test_profile_page_show_correct_context(self):
         """Шаблон profile сформирован с правильным контекстом."""
+        posts_count = Post.objects.count()
         user = PostsViewsTests.user
         response = self.auth_client.get(
             reverse('posts:profile', kwargs={'username': user.username})
@@ -138,12 +142,13 @@ class PostsViewsTests(TestCase):
         self.assertEqual(post_group, 'Тестовая группа')
         self.assertEqual(
             post_text,
-            'Тестовый пост №13 тестового пользователя в тестовой группе'
+            TEST_POST_TEXT
         )
-        self.assertEqual(context_posts_count, 13)
+        self.assertEqual(context_posts_count, posts_count)
 
     def test_post_detail_page_show_correct_context(self):
         """Шаблон post_detail сформирован с правильным контекстом."""
+        posts_count = Post.objects.count()
         post = PostsViewsTests.post
         response = self.auth_client.get(
             reverse('posts:post_detail', kwargs={'post_id': post.pk})
@@ -159,9 +164,9 @@ class PostsViewsTests(TestCase):
         self.assertEqual(post_group, 'Тестовая группа')
         self.assertEqual(
             post_text,
-            'Тестовый пост №13 тестового пользователя в тестовой группе'
+            TEST_POST_TEXT
         )
-        self.assertEqual(context_posts_count, 13)
+        self.assertEqual(context_posts_count, posts_count)
 
     def test_post_create_show_correct_context(self):
         """Шаблон create_post (create) сформирован с правильным контекстом."""
@@ -200,39 +205,38 @@ class PostsViewsTests(TestCase):
         """Проверка работы паджинатора в шаблонах приложения Posts."""
         group = PostsViewsTests.group2
         user = PostsViewsTests.user
+        PAGE_1_POSTS = 10
 
-        pages_names = [
-            reverse('posts:index'),
-            reverse('posts:group_posts', kwargs={'slug': group.slug}),
-            reverse('posts:profile', kwargs={'username': user.username}),
-        ]
+        urls_page2posts_names = {
+            reverse('posts:index'): 3,
+            reverse('posts:group_posts', kwargs={'slug': group.slug}): 2,
+            reverse('posts:profile', kwargs={'username': user.username}): 3,
+        }
 
-        for page in pages_names:
+        for page, page_2_posts in urls_page2posts_names.items():
             with self.subTest(page=page):
                 response_page_1 = self.auth_client.get(page)
                 response_page_2 = self.auth_client.get(page + '?page=2')
-                self.assertEqual(len(response_page_1.context['page_obj']), 10)
 
-                if page == '/group/test-slug2/':
-                    self.assertEqual(
-                        len(response_page_2.context['page_obj']), 2
-                    )
-                    continue
+                self.assertEqual(
+                    len(response_page_1.context['page_obj']),
+                    PAGE_1_POSTS
+                )
+                self.assertEqual(
+                    len(response_page_2.context['page_obj']),
+                    page_2_posts
+                )
 
-                self.assertEqual(len(response_page_2.context['page_obj']), 3)
-
-    def test_posts_post_correct_creation(self):
-        """Проверка, что созданный пост появляется только
-        на нужных страницах."""
+    def test_post_correct_appear(self):
+        ("""Проверка, что созданный пост появляется на """
+         """нужных страницах.""")
         group = PostsViewsTests.group
-        group2 = PostsViewsTests.group2
         user = PostsViewsTests.user
         post = PostsViewsTests.post
 
         pages_names = [
             reverse('posts:index'),
             reverse('posts:group_posts', kwargs={'slug': group.slug}),
-            reverse('posts:group_posts', kwargs={'slug': group2.slug}),
             reverse('posts:profile', kwargs={'username': user.username}),
         ]
 
@@ -241,8 +245,16 @@ class PostsViewsTests(TestCase):
                 response = self.auth_client.get(page)
                 context_post = response.context['page_obj'][0]
 
-                if page == '/group/test-slug2/':
-                    self.assertNotEqual(context_post, post)
-                    continue
-
                 self.assertEqual(context_post, post)
+
+    def test_post_correct_not_appear(self):
+        ("""Проверка, что созданный пост не появляется в группе """
+         """к которой он не принадлежит.""")
+        group2 = PostsViewsTests.group2
+        post = PostsViewsTests.post
+        page = reverse('posts:group_posts', kwargs={'slug': group2.slug})
+
+        response = self.auth_client.get(page)
+        context_post = response.context['page_obj'][0]
+
+        self.assertNotEqual(context_post, post)

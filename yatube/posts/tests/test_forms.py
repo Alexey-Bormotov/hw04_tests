@@ -6,6 +6,9 @@ from ..models import Group, Post
 
 User = get_user_model()
 
+TEST_POST_TEXT = 'Тестовый пост'
+TEST_POST_TEXT_2 = 'Изменённый тестовый пост'
+
 
 class PostsFormsTests(TestCase):
     @classmethod
@@ -31,12 +34,10 @@ class PostsFormsTests(TestCase):
     def test_posts_create_post(self):
         """Валидная форма создает запись в Post."""
         posts_count = Post.objects.count()
-        group = PostsFormsTests.group
-        user = PostsFormsTests.user
 
         form_data = {
-            'text': 'Тестовый пост',
-            'group': group.pk,
+            'text': TEST_POST_TEXT,
+            'group': self.group.pk,
         }
 
         response = self.auth_client.post(
@@ -47,36 +48,34 @@ class PostsFormsTests(TestCase):
 
         self.assertRedirects(
             response,
-            reverse('posts:profile', kwargs={'username': user.username})
+            reverse('posts:profile', kwargs={'username': self.user.username})
         )
         self.assertEqual(Post.objects.count(), posts_count + 1)
         self.assertTrue(
             Post.objects.filter(
-                text='Тестовый пост',
-                group=group,
-                author=user,
+                text=TEST_POST_TEXT,
+                group=self.group,
+                author=self.user,
             ).exists()
         )
 
     def test_posts_edit_post(self):
         """Валидная форма редактирует запись в Post."""
         posts_count = Post.objects.count()
-        group = PostsFormsTests.group
-        post = PostsFormsTests.post
 
         form_data = {
-            'text': 'Изменённый тестовый пост',
-            'group': group.pk,
+            'text': TEST_POST_TEXT_2,
+            'group': self.group.pk,
         }
 
         self.auth_client.post(
-            reverse('posts:post_edit', kwargs={'post_id': post.pk}),
+            reverse('posts:post_edit', kwargs={'post_id': self.post.pk}),
             data=form_data,
             follow=True
         )
 
         self.assertEqual(Post.objects.count(), posts_count)
         self.assertEqual(
-            Post.objects.get(pk=post.pk).text,
-            'Изменённый тестовый пост'
+            Post.objects.get(pk=self.post.pk).text,
+            TEST_POST_TEXT_2
         )

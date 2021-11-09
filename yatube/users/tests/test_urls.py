@@ -27,12 +27,12 @@ class UsersURLTests(TestCase):
             '/auth/logout/',
         ]
 
-        for adress in url_names:
-            with self.subTest(adress=adress):
-                guest_response = self.guest_client.get(adress, follow=True)
-                auth_response = self.auth_client.get(adress)
+        for address in url_names:
+            with self.subTest(address=address):
+                guest_response = self.guest_client.get(address, follow=True)
+                auth_response = self.auth_client.get(address)
 
-                if adress == '/auth/password_change/':
+                if address == '/auth/password_change/':
                     self.assertRedirects(
                         guest_response,
                         f'{"/auth/login/?next=/auth/password_change/"}'
@@ -53,7 +53,7 @@ class UsersURLTests(TestCase):
             '/auth/logout/': 'users/logged_out.html',
         }
 
-        for adress, template in url_templates_names.items():
-            with self.subTest(adress=adress):
-                response = self.auth_client.get(adress)
+        for address, template in url_templates_names.items():
+            with self.subTest(address=address):
+                response = self.auth_client.get(address)
                 self.assertTemplateUsed(response, template)

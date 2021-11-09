@@ -44,50 +44,62 @@ class PostsURLTests(TestCase):
             f'/group/{group.slug}/',
             f'/profile/{user.username}/',
             f'/posts/{post.pk}/',
-            f'/posts/{post.pk}/edit/',
-            '/create/',
-            '/fake_page/',
         ]
 
-        for adress in url_names:
-            with self.subTest(adress=adress):
-                guest_response = self.guest_client.get(adress, follow=True)
-                auth_response = self.auth_client.get(adress)
-
-                if adress == f'/posts/{post.pk}/edit/':
-                    self.assertRedirects(
-                        guest_response,
-                        f'/auth/login/?next=/posts/{post.pk}/edit/'
-                    )
-
-                    self.assertEqual(
-                        auth_response.reason_phrase, 'OK'
-                    )
-
-                    auth_not_author_response = (
-                        self.auth_client_not_author.get(adress)
-                    )
-                    self.assertEqual(
-                        auth_not_author_response.url,
-                        f'/posts/{post.pk}'
-                    )
-                    continue
-
-                if adress == '/create/':
-                    self.assertRedirects(
-                        guest_response,
-                        f'{"/auth/login/?next=/create/"}'
-                    )
-                    self.assertEqual(auth_response.reason_phrase, 'OK')
-                    continue
-
-                if adress == '/fake_page/':
-                    self.assertEqual(guest_response.reason_phrase, 'Not Found')
-                    self.assertEqual(auth_response.reason_phrase, 'Not Found')
-                    continue
+        for address in url_names:
+            with self.subTest(address=address):
+                guest_response = self.guest_client.get(address, follow=True)
+                auth_response = self.auth_client.get(address)
 
                 self.assertEqual(guest_response.reason_phrase, 'OK')
                 self.assertEqual(auth_response.reason_phrase, 'OK')
+
+    def test_post_edit_url_exists_at_desired_location(self):
+        ("""Проверяем доступность страницы редактирования поста """
+         """приложения Posts.""")
+        post = PostsURLTests.post
+        address = f'/posts/{post.pk}/edit/'
+
+        guest_response = self.guest_client.get(address, follow=True)
+        auth_response = self.auth_client.get(address)
+        auth_not_author_response = (
+            self.auth_client_not_author.get(address)
+        )
+
+        self.assertRedirects(
+            guest_response,
+            f'/auth/login/?next=/posts/{post.pk}/edit/'
+        )
+        self.assertEqual(auth_response.reason_phrase, 'OK')
+        self.assertEqual(
+            auth_not_author_response.url,
+            f'/posts/{post.pk}'
+        )
+
+    def test_create_post_url_exists_at_desired_location(self):
+        ("""Проверяем доступность страницы создания поста """
+         """приложения Posts.""")
+        address = f'{"/create/"}'
+
+        guest_response = self.guest_client.get(address, follow=True)
+        auth_response = self.auth_client.get(address)
+
+        self.assertRedirects(
+            guest_response,
+            f'{"/auth/login/?next=/create/"}'
+        )
+        self.assertEqual(auth_response.reason_phrase, 'OK')
+
+    def test_404_error_return_for_unexisting_page(self):
+        ("""Проверяем возврат ошибки 404 при запросе к """
+         """несуществующей странице.""")
+        address = f'{"/fake_page/"}'
+
+        guest_response = self.guest_client.get(address, follow=True)
+        auth_response = self.auth_client.get(address)
+
+        self.assertEqual(guest_response.reason_phrase, 'Not Found')
+        self.assertEqual(auth_response.reason_phrase, 'Not Found')
 
     def test_urls_uses_correct_template(self):
         """Проверяем шаблоны приложения Posts."""
@@ -104,7 +116,7 @@ class PostsURLTests(TestCase):
             '/create/': 'posts/create_post.html',
         }
 
-        for adress, template in url_templates_names.items():
-            with self.subTest(adress=adress):
-                response = self.auth_client.get(adress)
+        for address, template in url_templates_names.items():
+            with self.subTest(address=address):
+                response = self.auth_client.get(address)
                 self.assertTemplateUsed(response, template)
