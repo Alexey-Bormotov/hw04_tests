@@ -1,5 +1,4 @@
-import datetime as dt
-import pytz
+from time import sleep
 
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
@@ -35,20 +34,13 @@ class PostsViewsTests(TestCase):
                 group=cls.group2,
                 text=f'Тестовый пост №{i+1} тестового '
                      f'пользователя в тестовой группе 2',
-                pub_date=(
-                    dt.datetime.now(pytz.timezone('Europe/Moscow'))
-                    + dt.timedelta(days=i)
-                ),
             )
+            sleep(0.01)
 
         cls.post = Post.objects.create(
             author=cls.user,
             group=cls.group,
             text=TEST_POST_TEXT,
-            pub_date=(
-                dt.datetime.now(pytz.timezone('Europe/Moscow'))
-                + dt.timedelta(days=13)
-            ),
         )
 
     def setUp(self):
