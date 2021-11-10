@@ -1,4 +1,5 @@
-from time import sleep
+import datetime as dt
+import pytz
 
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
@@ -34,18 +35,20 @@ class PostsViewsTests(TestCase):
                 group=cls.group2,
                 text=f'Тестовый пост №{i+1} тестового '
                      f'пользователя в тестовой группе 2',
+                pub_date=(
+                    dt.datetime.now(pytz.timezone('Europe/Moscow'))
+                    + dt.timedelta(days=i)
+                ),
             )
-            # Такой вариант тоже помогает, но он не красиво работает)
-            # и pytest выдаёт предупреждения
-            # Post.objects.filter(pk=i + 1).update(pub_date=f'2021-1-{i+1}')
 
-            sleep(0.01)
-
-        # Этот друг в другой группе (№1), предыдушие 12 в группе №2
         cls.post = Post.objects.create(
             author=cls.user,
             group=cls.group,
             text=TEST_POST_TEXT,
+            pub_date=(
+                dt.datetime.now(pytz.timezone('Europe/Moscow'))
+                + dt.timedelta(days=13)
+            ),
         )
 
     def setUp(self):

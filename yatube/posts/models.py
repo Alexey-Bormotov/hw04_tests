@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -20,7 +21,8 @@ class Post(models.Model):
     )
     pub_date = models.DateTimeField(
         verbose_name='Дата публикации',
-        auto_now_add=True,
+        default=timezone.now,
+        # auto_now_add=True,
     )
     author = models.ForeignKey(
         User,
